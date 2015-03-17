@@ -179,13 +179,13 @@ function render() {
     
     earth.position.set(80 * Math.cos(angle*Math.PI/180), 0, -80 * Math.sin(angle*Math.PI/180));
 
-    earth.rotation.y = -angle*80*Math.PI/180;
+    earth.rotation.y = angle*80*Math.PI/180;
 
 
     angle2 = angle * 12;
-    moon.position.set(20 * Math.cos((angle2+angle*80)*Math.PI/180), 0, -20 * Math.sin((angle2+angle*80)*Math.PI/180));
+    moon.position.set(20 * Math.cos((angle2-angle*80)*Math.PI/180), 0, -20 * Math.sin((angle2-angle*80)*Math.PI/180));
 
-    moon.rotation.y = (angle2+(angle*72.5))*Math.PI/180;
+    moon.rotation.y = (angle2-(angle*87.5))*Math.PI/180;
                                             }
    
     renderer.render(sceneBack, cameraBack);
