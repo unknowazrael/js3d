@@ -85,7 +85,7 @@ function init() {
 	var earthTexture = new THREE.ImageUtils.loadTexture('images/earth.jpg');
     earthTexture.wrapS = earthTexture.wrapT = THREE.RepeatWrapping; 
 	//sunTexture.repeat.set( 2, 0 );
-	var earthMaterial = new THREE.MeshBasicMaterial( { map: earthTexture, side: THREE.DoubleSide } );
+	var earthMaterial = new THREE.MeshLambertMaterial( { map: earthTexture, side: THREE.DoubleSide } );
       earth = new THREE.Mesh(new THREE.SphereGeometry(10,33,33),
     earthMaterial);
 
@@ -93,7 +93,7 @@ function init() {
     var moonTexture = new THREE.ImageUtils.loadTexture('images/moon.jpg');
     moonTexture.wrapS = moonTexture.wrapT = THREE.RepeatWrapping; 
 	//sunTexture.repeat.set( 2, 0 );
-	var moonMaterial = new THREE.MeshBasicMaterial( { map: moonTexture, side: THREE.DoubleSide } );
+	var moonMaterial = new THREE.MeshLambertMaterial( { map: moonTexture, side: THREE.DoubleSide } );
       moon = new THREE.Mesh(new THREE.SphereGeometry(5,33,33),
     moonMaterial);
     earth.add(moon);
@@ -106,7 +106,7 @@ function init() {
     gridXZ.setColors(new THREE.Color(0xff0000), new THREE.Color(0xffffff));
     //scene.add(gridXZ);
 
-    light = new THREE.PointLight(0xffffff,100);
+    light = new THREE.PointLight(0xffffff,2);
     light.position.set(0, 0, 0);
     scene.add(light);
 
@@ -130,13 +130,14 @@ function onWindowResize() {
 
 function animate() {
 
-
+    
     control.update();
     requestAnimationFrame(animate);
     
 
 	update();
-	render();  // display callback
+	render();  
+
 }
 var n=0;
 var x=1;
