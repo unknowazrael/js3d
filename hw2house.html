@@ -16,9 +16,7 @@
 <body>
 <div id="info">DOOR <br>
 <a href="javascript:toggle(state);">PLAY</a>
-<a href="javascript:t(s);">STOP</a><br>
-
-</div>
+<a href="javascript:t(s);">STOP</a></div>
 
 <audio id="opensound" style="display:none">
 <source src="sounds/open.wav" type='audio/mp3'>
@@ -30,8 +28,7 @@
 </audio>
 <script src="//cdnjs.cloudflare.com/ajax/libs/three.js/r70/three.min.js"></script>
 <script src="https://dl.dropboxusercontent.com/u/3587259/Code/Threejs/OrbitControls.js"></script>
-<script src="js/dat.gui.min.js"></script>
-<script src="js/dat.gui.min.js"></script>
+ <script src="js/dat.gui.min.js"></script>
 <script>
 var camera, scene, renderer, light, controls;
 var frame;
@@ -50,6 +47,7 @@ function init() {
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
     camera.position.z = 150; camera.position.y = 100;
+	camera.lookAt(new THREE.Vector3(0,0,0));
     scene.add(camera);
     //////////////////////////////////////////////////////////////////
     frame = new THREE.Object3D();
@@ -86,8 +84,11 @@ function init() {
 	var mesh6 = createMesh(new THREE.SphereGeometry( 1.5, 32, 32 ), "metal.jpg");
 	var mesh7 = createMesh(new THREE.CylinderGeometry( 0.5, 0.5, 2, 32 ), "metal.jpg");
 	var mesh8 = createMesh(new THREE.SphereGeometry( 1.5, 32, 32 ), "metal.jpg");
-	var mesh9 = createMesh(new THREE.BoxGeometry( 0.5, 5, 3, 32 ), "bolt.jpg");
+	var mesh9 = createMesh(new THREE.BoxGeometry( 0.5, 5, 3 ), "bolt.jpg");
 	var mesh10 = mesh9.clone();
+	var mesh13 = createMesh(new THREE.BoxGeometry( 200, 0.1, 200), "floor.jpg");
+	var mesh14 = createMesh(new THREE.CylinderGeometry( 0.2, 0.1, 10, 32 ), "metal.jpg");
+	var mesh15 = createMesh(new THREE.CylinderGeometry( 5, 10, 10, 32 ), "lamp.jpg");
     mesh4.position.set(-(4+9), 21 + 3, -2);
 	mesh5.position.set(-20,25,1);
 	mesh5.rotation.x = Math.PI/2;
@@ -97,7 +98,9 @@ function init() {
 	mesh8.position.set(-20,25,-6.5);
 	mesh9.position.set(0,10,-1.5);
 	mesh10.position.set(0,35,-1.5);
-	
+	mesh13.position.set(0,0,-100);
+	mesh14.position.set(0,190,-100);
+	mesh15.position.set(0,180,-100);
     door.add(mesh4);
 	door.add(mesh5);
 	door.add(mesh6);
@@ -105,6 +108,9 @@ function init() {
 	door.add(mesh8);
 	door.add(mesh9);
 	door.add(mesh10);
+    scene.add(mesh13);
+	scene.add(mesh14);
+	scene.add(mesh15);
     door.position.set(30,0,0); 
     ////////////////////////////////////////////////////////////////////
 	var geometry = new THREE.CylinderGeometry( 0.5, 0.5, 5, 32 ); 
@@ -116,25 +122,34 @@ function init() {
     scene.add(cylinder1);
     cylinder.position.set(30,10,0.5);
     cylinder1.position.set(30,35,0.5);	
-	mesh11.position.set(30,10,-2);
+	mesh11.position.set(30,10,-1.9);
 	mesh12.position.set(30,35,-1.9);
 	scene.add(mesh11);
 	scene.add(mesh12);
 	
     ////////////////////////////////////////////////////////////////////
+	//skybox
+	var floorTexture = THREE.ImageUtils.loadTexture("images/wall.jpg");
+	var skyboxGeometry = new THREE.BoxGeometry (200,200,200);
+	var skyboxMaterial = new THREE.MeshBasicMaterial ({map:floorTexture, side:THREE.BackSide});
+	var skybox = new THREE.Mesh (skyboxGeometry, skyboxMaterial);
+	skybox.position.set(0,100,-100);
+	scene.add (skybox);
+	
     light = new THREE.PointLight(0xffffff);
     light.position.set(100, 200, 200);
     scene.add(light);
     
     
     light1 = new THREE.PointLight(0xffffff);
-    light1.position.set(-100, 300, -200);
+    light1.position.set(-40,180,-100);
     scene.add(light1);
 
 
     var gridXZ = new THREE.GridHelper(100, 10);
     gridXZ.setColors(new THREE.Color(0xff0000), new THREE.Color(0xffffff));
-    scene.add(gridXZ);
+	gridXZ.position.set(0,0,-100);
+    //scene.add(gridXZ);
 
     renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
