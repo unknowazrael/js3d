@@ -19,7 +19,7 @@
 <script src="js/KeyboardState.js"></script>
 
 <script>
-var camera, scene, renderer, geometry, material, light, controls;
+var camera, scene, renderer, geometry, material, light, controls, material1;
 var clock = new THREE.Clock();
 var keyboard = new KeyboardState();
 var angle = 0, speed = 5;
@@ -41,9 +41,10 @@ function init() {
     scene.add(camera);
 
     THREE.ImageUtils.crossOrigin = '';
-    var colormap = THREE.ImageUtils.loadTexture('/images/tireside2.png');
-    var colormap2 = THREE.ImageUtils.loadTexture('/images/tire1.jpg');
-    var bump = THREE.ImageUtils.loadTexture("images/tire1-bump.jpg");
+	var colormap2 = THREE.ImageUtils.loadTexture('http://i.imgur.com/i9NqStr.jpg');
+    var bump = THREE.ImageUtils.loadTexture('http://i.imgur.com/FqKGKyV.jpg');
+    var colormap = THREE.ImageUtils.loadTexture('/images/tireside1.png');
+
     tire = new THREE.Object3D();
     geometry = new THREE.CircleGeometry(50, 40);
     material = new THREE.MeshPhongMaterial({
@@ -51,16 +52,18 @@ function init() {
         transparent: true,  // for cut-out texture
         side: THREE.DoubleSide
     });
+	geometry1 = new THREE.CylinderGeometry(50, 50, 20, 40, 1, true);
+    material1 =  new THREE.MeshPhongMaterial({
+	    map: colormap2,
+		bumpMap:bump,
+        side: THREE.DoubleSide
+    });
     var mesh = new THREE.Mesh(geometry, material);
+	bump.wrapS = bump.wrapT = THREE.RepeatWrapping; 
+	bump.repeat.set( 12, 1 );
 	colormap2.wrapS = colormap2.wrapT = THREE.RepeatWrapping; 
 	colormap2.repeat.set( 12, 1 );
-    var mesh2 = new THREE.Mesh(new THREE.CylinderGeometry(50, 50, 20, 40, 1, true), // only side
-    new THREE.MeshPhongMaterial({
-        map: colormap2,
-        side: THREE.DoubleSide,
-		bumpMap: bump,
-		bumpScale: 0.4
-    }));
+    var mesh2 = new THREE.Mesh(geometry1, material1);
 
     mesh2.rotation.x = Math.PI / 2;
     mesh.position.set(0, 0, 10);
