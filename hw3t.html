@@ -15,9 +15,45 @@
 <body>
 <div id="info">hw3  <br/>Arrow keys</div>
 <script src="http://cdnjs.cloudflare.com/ajax/libs/three.js/r70/three.min.js"></script>
-<script src="https://dl.dropboxusercontent.com/u/3587259/Code/Threejs/OrbitControls.js"> </script>
-<script src="js/KeyboardState.js"></script>
+<script src="https://dl.dropboxusercontent.com/u/3587259/Code/Threejs/OrbitControls.js">    
+</script>
+<script src="http://jyunming-chen.github.io/tutsplus/js/KeyboardState.js"></script>
+<script type="x-shader/x-fragment" id="fragmentShaderDepth">
+    uniform sampler2D texture;
+    varying vec2 vUV;
+    vec4 pack_depth(const in float depth) {
 
+        const vec4 bit_shift = vec4(256.0 * 256.0 * 256.0, 256.0 * 256.0, 256.0, 1.0);
+        const vec4 bit_mask = vec4(0.0, 1.0 / 256.0, 1.0 / 256.0, 1.0 / 256.0);
+        vec4 res = fract(depth * bit_shift);
+        res -= res.xxyz * bit_mask;
+        return res;
+
+    }
+
+    void main() {
+
+        vec4 pixel = texture2D(texture, vUV);
+
+        if (pixel.a < 0.5) discard;
+
+        gl_FragData[0] = pack_depth(gl_FragCoord.z);
+
+    }
+</script>
+<script type="x-shader/x-vertex" id="vertexShaderDepth">
+    varying vec2 vUV;
+
+    void main() {
+
+        vUV = 1.0 * uv;
+
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+
+        gl_Position = projectionMatrix * mvPosition;
+
+    }
+</script>
 <script>
 var camera, scene, renderer, geometry, material, light, controls, material1;
 var clock = new THREE.Clock();
@@ -43,7 +79,8 @@ function init() {
     THREE.ImageUtils.crossOrigin = '';
 	var colormap2 = THREE.ImageUtils.loadTexture('http://i.imgur.com/i9NqStr.jpg');
     var bump = THREE.ImageUtils.loadTexture('http://i.imgur.com/FqKGKyV.jpg');
-    var colormap = THREE.ImageUtils.loadTexture('images/tireside1.png');
+    var colormap = THREE.ImageUtils.loadTexture('/images/tireside1.png');
+	var colormap3 = THREE.ImageUtils.loadTexture('/images/solid.jpg');
 
     tire = new THREE.Object3D();
     geometry = new THREE.CircleGeometry(50, 40);
@@ -64,12 +101,31 @@ function init() {
 	colormap2.wrapS = colormap2.wrapT = THREE.RepeatWrapping; 
 	colormap2.repeat.set( 12, 1 );
     var mesh2 = new THREE.Mesh(geometry1, material1);
-
+     var uniforms = {
+        texture: {
+            type: "t",
+            value: colormap
+        }
+    };
+    var vertexShader = document.getElementById('vertexShaderDepth').textContent;
+    var fragmentShader = document.getElementById('fragmentShaderDepth').textContent;
+    mesh.customDepthMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader
+    });
     mesh2.rotation.x = Math.PI / 2;
     mesh.position.set(0, 0, 10);
+	
     mesh0 = mesh.clone();
+	mesh0.customDepthMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader
+    });
     mesh0.position.set(0, 0, -10);
     mesh0.rotation.y = Math.PI;
+    mesh.rotation.y = Math.PI;
     tire.add (mesh);
     tire.add(mesh0);
     tire.add(mesh2);
@@ -87,21 +143,22 @@ function init() {
     var rb = rt + h * Math.tan(alpha);
 
     geometry = new THREE.CylinderGeometry(rt, rb, h, 20, 1, true);
-    material1 = new THREE.MeshBasicMaterial({
+    material3 = new THREE.MeshPhongMaterial({
         side: THREE.DoubleSide,
-        wireframe: true,
-        color: 0xffff00
+     
+      
+		map: colormap3
     });
-    mesh = new THREE.Mesh(geometry, material1);
-    mesh.position.setY(-h / 2); // so that top face is on XZ plane
+    mesh3 = new THREE.Mesh(geometry, material3);
+    mesh3.position.setY(-h / 2); // so that top face is on XZ plane
 
     lamp = new THREE.Object3D();
-    lamp.add(mesh);
+    lamp.add(mesh3);
     lamp.position.setY(ly);
     scene.add(lamp);
  
     // spotlight
-    light = new THREE.SpotLight(0xffffff, 2);
+    light = new THREE.SpotLight(0xffffff, 1.5);
     light.position.set(0, ly, 0);
     light.angle = alpha;
     light.exponent = 30;
@@ -128,6 +185,8 @@ function init() {
 	light.shadowMapWidth = 2048;
 	light.shadowMapHeight = 2048;
 	scene.add( light );
+	
+	
  
 	floor.castShadow = true; floor.receiveShadow = true;
 	//tire.castShadow = true; tire.receiveShadow = true;
