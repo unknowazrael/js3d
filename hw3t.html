@@ -116,6 +116,13 @@ function init() {
     });
     mesh2.rotation.x = Math.PI / 2;
     mesh.position.set(0, 0, 10);
+	meshc = mesh.clone();
+	meshc.customDepthMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader
+    });
+
 	
     mesh0 = mesh.clone();
 	mesh0.customDepthMaterial = new THREE.ShaderMaterial({
@@ -124,9 +131,23 @@ function init() {
         fragmentShader: fragmentShader
     });
     mesh0.position.set(0, 0, -10);
+	mesh0c = mesh0.clone();
+	mesh0c.customDepthMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader
+    });
+	
     mesh0.rotation.y = Math.PI;
-   // mesh.rotation.y = Math.PI;
+	
+    meshc.rotation.y = Math.PI;
+	
+	console.log('mesh.y'+mesh0.rotation.y);
+	console.log('meshc.y'+mesh0c.rotation.y);
+	
     tire.add (mesh);
+	tire.add (meshc);
+	tire.add (mesh0c);
     tire.add(mesh0);
     tire.add(mesh2);
 	tire.position.set(0,15,0);
@@ -189,9 +210,10 @@ function init() {
 	
  
 	floor.castShadow = true; floor.receiveShadow = true;
-	//tire.castShadow = true; tire.receiveShadow = true;
+    meshc.castShadow = true; meshc.receiveShadow = true;
 	mesh.castShadow = true; mesh.receiveShadow = true;
 	mesh0.castShadow = true; mesh0.receiveShadow = true;
+	mesh0c.castShadow = true; mesh0c.receiveShadow = true;
 	mesh2.castShadow = true; mesh2.receiveShadow = true;
 
 	
