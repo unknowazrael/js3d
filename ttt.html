@@ -22,6 +22,8 @@ var clock = new THREE.Clock();
 var keyboard = new KeyboardState();
 var camera, scene, renderer, geometry, material, light, controls;
 var pos = new THREE.Vector3(0,0,0), angle = 0;
+var PL = new THREE.Vector3(0,0,15);
+var PR = new THREE.Vector3(0,0,-15);
 
 var speed = 5, rotspeed = 0;
 
@@ -132,7 +134,9 @@ colormap2.wrapS = colormap2.wrapT = THREE.RepeatWrapping;
 }
 
 function animate() {
-
+   
+ 
+    findc(speedL,speedR,PL,PR);
     var dt = clock.getDelta();
     var dir = new THREE.Vector3(-1,0,0);
     angle += rotspeed*dt;
@@ -171,12 +175,9 @@ function findc(SL,SR,PL,PR)
    C.x=PR.x-x;
    z=multi*(PR.z-PL.z);
    C.z=PR.z-z;
-   alert(C.x+' '+C.z);
+   console.log(C.x+' '+C.z);
 }
-function findc(SL,SR,PL,PR)
-{
-	
-}
+
 function update()
 {
 	controls.update();
@@ -192,7 +193,7 @@ function update()
 		speedL += 1; speedR += 1;		
 	if ( keyboard.pressed("down") )
 		speedL -= 1; speedR -= 1; 
-		console.log ("P: "+pos.x+' '+pos.z+"angle: "+angle/Math.PI*180);
+	
 
 	// viscous drag
 	speedL *= 0.975;

@@ -87,7 +87,7 @@ function init() {
     material = new THREE.MeshPhongMaterial({
         map: colormap,
         transparent: true,  // for cut-out texture
-        side: THREE.DoubleSide
+        //side: THREE.DoubleSide
     });
 	geometry1 = new THREE.CylinderGeometry(50, 50, 20, 40, 1, true);
     material1 =  new THREE.MeshPhongMaterial({
@@ -214,7 +214,7 @@ function init() {
 	mesh.castShadow = true; mesh.receiveShadow = true;
 	mesh0.castShadow = true; mesh0.receiveShadow = true;
 	mesh0c.castShadow = true; mesh0c.receiveShadow = true;
-	mesh2.castShadow = true; mesh2.receiveShadow = true;
+	mesh2.castShadow = true; //mesh2.receiveShadow = true;
 
 	
    
