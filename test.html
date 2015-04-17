@@ -1,0 +1,173 @@
+var keyboard = new KeyboardState();
+var camera, scene, renderer;
+var pa = new THREE.Vector3(0, 20, 0);
+var pb = new THREE.Vector3(0, -20, 0);
+var pc = new THREE.Vector3(0,0,0);
+var sa = 2;
+var sb = 4;
+var pointA, pointB, car;
+var speedInfo;
+var k = 0;
+
+init();
+animate();
+
+function update(dt) {
+    var center = new THREE.Vector3();
+    var tmp = new THREE.Vector3();
+    var l = tmp.subVectors(pa, pb).length();
+
+    k = l * sa / (sb - sa);
+    var omega = (sb - sa) / l;
+    //if (omega === 0.0) {
+    if (Math.abs(sa-sb) < 1e-5) {    // this gives better result (no jerk)
+    tmp.subVectors(pa, pb).normalize().cross(new THREE.Vector3(0, 0, 1)).multiplyScalar(sa * dt);
+        pa.add(tmp);
+        pb.add(tmp);
+        pointA.position.copy(pa);
+        pointB.position.copy(pb);
+        return; // do a pure translation then return
+    }
+
+    tmp.subVectors(pa, pb).normalize().multiplyScalar(k);
+    center.copy(tmp.add(pa));
+
+    tmp.subVectors(pa, center)
+        .applyAxisAngle(new THREE.Vector3(0, 0, 1), omega * dt)
+        .add(center);
+    pa.copy(tmp);
+
+    tmp.subVectors(pb, center)
+        .applyAxisAngle(new THREE.Vector3(0, 0, 1), omega * dt)
+        .add(center);
+    pb.copy(tmp);
+
+    // normalize ...
+    //tmp.subVectors (pb,pa).normalize().multiplyScalar(l);
+    //pb.addVectors(tmp,pa);
+    
+    pointA.position.copy(pa);
+    pointB.position.copy(pb);
+    pointC.position.copy (center);
+  
+}
+
+function init() {
+
+    speedInfo = window.document.getElementById('speed');
+    scene = new THREE.Scene();
+
+    camera = new THREE.OrthographicCamera(-100, 100, 100, -100, -10, 10);
+    camera.position.z = 5;
+    scene.add(camera);
+
+    var gridXZ = new THREE.GridHelper(100, 5);
+    gridXZ.setColors(new THREE.Color(0xff0000), new THREE.Color(0xffffff));
+    gridXZ.rotation.x = Math.PI / 2;
+    scene.add(gridXZ);
+
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x888888);
+
+    document.body.appendChild(renderer.domElement);
+
+    ///////////////////////////////////////////////////////////////////
+    pointA = new THREE.Mesh(new THREE.CircleGeometry(2),
+    new THREE.MeshBasicMaterial({
+        color: 0xff0000
+    }));
+    pointB = new THREE.Mesh(new THREE.CircleGeometry(2),
+    new THREE.MeshBasicMaterial({
+        color: 0x0000ff
+    }));
+    pointC = new THREE.Mesh(new THREE.CircleGeometry(2),
+    new THREE.MeshBasicMaterial({
+        color: 0xffff00
+    }));
+
+    pointA.position.copy(pa);
+    pointB.position.copy(pb);
+    pointC.position.copy(pc);
+    scene.add(pointA);
+    scene.add(pointB);
+    scene.add(pointC);
+
+    car = new THREE.Mesh(new THREE.BoxGeometry(20, 40, 5),
+    new THREE.MeshBasicMaterial({
+        color: 0xffff00,
+        opacity: 0.42,
+        transparent: true
+    }));
+    scene.add(car);
+    /*    
+    // compute rotation center;
+    var center = new THREE.Vector3();
+    var tmp = new THREE.Vector3();
+    var l = tmp.subVectors(pa, pb).length();
+
+    var k = l * sa / (sb - sa);
+    tmp.subVectors(pa, pb).normalize().multiplyScalar(k);
+    center.copy(tmp.add(pa));
+
+    var pointC = new THREE.Mesh(new THREE.CircleGeometry(2),
+    new THREE.MeshBasicMaterial({
+        color: 0xffff00
+    }));
+    pointC.position.copy(center);
+    scene.add(pointC);
+
+    rotateFrame = new THREE.Object3D();
+    rotateFrame.position.copy(center);
+    scene.add(rotateFrame);
+
+    rotateFrame.add(mesh);
+    mesh.position.copy(center.clone().negate());
+*/
+}
+
+function myclamp(x, lo, hi) {
+    return (x < lo) ? lo : ((x > hi) ? hi : x);
+}
+
+function animate() {
+    keyboard.update();
+
+    if (keyboard.pressed("I")) sb += 0.1;
+    if (keyboard.pressed("K")) sb -= 0.1;
+    if (keyboard.pressed("W")) sa += 0.1;
+    if (keyboard.pressed("S")) sa -= 0.1;
+
+    sa = myclamp(sa, -5, 5);
+    sb = myclamp(sb, -5, 5);
+
+    var text = 'sa: ' + sa.toFixed(2) + ', ' + 'sb: ' + sb.toFixed(2)
+    + '<br/>k: ' + k.toFixed(2);
+    
+    speedInfo.innerHTML = text;
+    // number format ?!
+
+    dt = 0.01;
+    update(0.01);
+
+    var tmp = new THREE.Vector3();
+    tmp.copy(pa);
+    tmp.add(pb).multiplyScalar(0.5); // (pa+pb)/2
+    car.position.copy(tmp);
+    tmp.copy(pa);
+    tmp.sub(pb); // pa - pb;
+    var angle = Math.atan2(tmp.y, tmp.x) - Math.PI / 2;
+    console.log(angle);
+    car.setRotationFromAxisAngle(new THREE.Vector3(0, 0, 1), angle);
+
+    requestAnimationFrame(animate);
+    render();
+    
+ 
+}
+
+function render() {
+    renderer.render(scene, camera);
+}
+
+window.focus();
