@@ -535,7 +535,7 @@ function animate()
     var axis = new THREE.Vector3();
     var d = new THREE.Vector3();
     var p = new THREE.Vector3();
-    p = tire.position.clone().sub(new THREE.Vector3(0, ly, 0)).normalize();
+    p = car.position.clone().sub(new THREE.Vector3(0, ly, 0)).normalize();
     d = new THREE.Vector3(0, -1, 0);
     axis.crossVectors(d, p).normalize();
     var rotangle = Math.acos(d.dot(p));
