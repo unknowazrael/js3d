@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+#info {
+    position: absolute;
+    top: 0px;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    color: #ffff00
+}
+body {
+    overflow: hidden;
+}
+</style>
+</head>
+<body>
+<div id="info">PBM</div>
+<script src="http://cdnjs.cloudflare.com/ajax/libs/three.js/r70/three.min.js"></script>
+<script src="http://numericjs.com/numeric/lib/numeric-1.2.6.min.js"></script>
+<script>
+var camera, scene, renderer, geometry, material, mesh, light, controls;
+var ks = 122;
+var kd = 3.7;
+var p1 = new THREE.Vector3(0, 0, 0);
+var p2 = new THREE.Vector3(5, 0, 0);
+var spring;
+var ucl;
+var lineGeometry = new THREE.Geometry();
+var Particle = function (p) {
+    this.pos = new THREE.Vector3(p.x, p.y, p.z);
+    this.force = new THREE.Vector3();
+    this.vel = new THREE.Vector3();
+};
+var Spring = function (p1, p2) {
+     ucl = Math.sqrt(Math.pow((p1.pos.x - p2.pos.x),2)+Math.pow((p1.pos.y - p2.pos.y),2));
+    // console.log(ucl);
+};
+
+var DampedSpring = function(p1,p2,r){
+    dx = new THREE.Vector3(p1.pos.x-p2.pos.x,p1.pos.y-p2.pos.y,p1.pos.z-p2.pos.z);
+    dv = new THREE.Vector3(p1.vel.x-p2.vel.x,p1.vel.y-p2.vel.y,p1.vel.z-p2.vel.z);
+    var dx_len = Math.sqrt(Math.pow((p1.pos.x - p2.pos.x),2)+Math.pow((p1.pos.y - p2.pos.y),2));
+    var scale = - (ks * (dx_len - r) + kd * numeric.dot ([dv.x,dv.y,dv.z], [dx.x,dx.y,dx.z]) / dx_len) / dx_len;
+        
+    p1.force.x += scale * dx.x;
+    p1.force.y += scale * dx.y;
+    p1.force.z += scale * dx.z;
+    p2.force.x -= scale * dx.x;
+    p2.force.y -= scale * dx.y;
+    p2.force.z -= scale * dx.z;  
+    
+
+    console.log(p1.force);
+}
+Particle.prototype.update = function (dt) {
+    this.vel.add(this.force.clone().multiplyScalar(dt));
+    this.pos.add(this.vel.clone().multiplyScalar(dt));
+ 
+};
+
+Particle.prototype.accumForce = function () {
+    p1.force.copy(new THREE.Vector3(2, -5, 0));
+    p2.force.copy(new THREE.Vector3(0,1, 0));
+};
+
+
+
+function initPBM() {
+    p1 = new Particle(p1);
+    p2 = new Particle(p2);
+
+   
+
+}
+
+init();
+animate();
+
+function drawBoundary() {
+    lineGeometry1 = new THREE.Geometry();
+    var vertArray = lineGeometry1.vertices;
+    vertArray.push(new THREE.Vector3(-18, -18, 0), new THREE.Vector3(-18, 18, 0), new THREE.Vector3(18, 18, 0), new THREE.Vector3(18, -18, 0), new THREE.Vector3(-18, -18, 0));
+    var lineMaterial = new THREE.LineBasicMaterial({
+        color: 0x00cc00,
+       
+    });
+    
+   
+    
+    var line = new THREE.Line(lineGeometry1, lineMaterial);
+    scene.add(line);
+}
+
+function init() {
+    initPBM();
+
+    scene = new THREE.Scene();
+    drawBoundary();
+
+    camera = new THREE.OrthographicCamera(-20, 20, 20, -20, 2, 100);
+    camera.position.z = 50;
+    scene.add(camera);
+    
+    lineGeometry = new THREE.Geometry();
+	var vertArray = lineGeometry.vertices;
+	vertArray.push( p1.pos, p2.pos );
+	lineGeometry.computeLineDistances();
+	var lineMaterial1 = new THREE.LineDashedMaterial( { color: 0xffffff, dashSize: 0.5, gapSize: 0.5, linewidth: 10 } );
+	var line = new THREE.Line( lineGeometry, lineMaterial1 );
+  
+	scene.add(line);
+    
+    geometry = new THREE.SphereGeometry(0.5);
+    material = new THREE.MeshBasicMaterial({
+        color: 0xff0000
+    });
+    material1 = new THREE.MeshBasicMaterial({
+        color: 0xffff00
+    });
+    
+
+    mesh1 = new THREE.Mesh(geometry, material);
+    scene.add(mesh1);
+    mesh2 = new THREE.Mesh(geometry, material1);
+    scene.add(mesh2);
+
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x888888);
+
+    document.body.appendChild(renderer.domElement);
+}
+
+function animate() {
+    dt = 0.1;
+    dt1 = 0.1;
+    p1.accumForce();
+    p1.update(dt);
+    p2.accumForce();
+    p2.update(dt1);
+
+    // collision detection (finish other 3 walls)
+    if (p1.pos.y < -18) {
+        p1.pos.y = -18;
+        p1.vel.y*=-1;
+        
+    }
+    if (p2.pos.y < -18) {
+        p2.pos.y = -18;
+        p2.vel.y*=-1;
+    }
+   
+    if (p1.pos.y > 18) {
+        p1.pos.y = 18;
+        p1.vel.y*=-1;
+    }
+    if (p2.pos.y > 18) {
+        p2.pos.y = 18;
+        p2.vel.y*=-1;
+    }
+    if (p1.pos.x < -18) {
+        p1.pos.x = -18;
+        p1.vel.x*=-1;
+    }
+    if (p2.pos.x < -18) {
+        p2.pos.x = -18;
+        p2.vel.x*=-1;
+    }
+   
+    if (p1.pos.x > 18) {
+        p1.pos.x = 18;
+        p1.vel.x*=-1;
+    }
+    if (p2.pos.x > 18) {
+        p2.pos.x = 18;
+        p2.vel.x*=-1;
+    }
+    //console.log(p1.pos);
+
+    mesh1.position.copy(p1.pos);
+    mesh2.position.copy(p2.pos);
+    spring = new Spring(p1,p2);
+
+    DampedSpring(p1,p2,2);
+    lineGeometry.vertices[0]= new THREE.Vector3(p1.pos.x,p1.pos.y,p1.pos.z);
+    lineGeometry.vertices[1]= new THREE.Vector3(p2.pos.x,p2.pos.y,p2.pos.z);
+    lineGeometry.verticesNeedUpdate = true;
+    requestAnimationFrame(animate);
+    render();
+}
+
+function render() {
+    renderer.render(scene, camera);
+}
+</script>
+
+</body>
+
+</html>
