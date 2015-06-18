@@ -52,6 +52,7 @@ User Name:
 <div id="life" style="margin:10px" align="center" ></div><font face="fantasy">
 <font face="fantasy" size = "20">Scores:
 <div id="score" style="margin:10px" align="center" ></div><font face="fantasy">
+<font face="fantasy" size = "20" color = "880000">press "login" to play
 </div>
 <audio id="oversound"  style="display:none">
 <source src="sounds/gameover.wav" type='audio/wav'>
@@ -120,6 +121,7 @@ var wp=0;
 var ct = 0.1;
 var userlife = 5;
 var s = 0;
+var mt = 3000;
 $("#login").click(function () {
 	if(g === false){}
 	else{
@@ -452,7 +454,7 @@ function startNewPuck() {
     which++;
   
     if (which <= 9)
-        setTimeout (startNewPuck, 1000);
+        setTimeout (startNewPuck, mt);
 }
 
 function check(){
@@ -551,8 +553,11 @@ function animate() {
         puck.update(dt);
         puck.collision();
     });
+	if(mt > 1000)
+	mt-=100*dt;
 	check();
     meshMaterial.uniforms.time.value += dt * 2;
+	console.log(mt);
     if(g === true){
 	
 	if(countdownnumber < 25)
