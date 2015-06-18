@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+#container {
+    width:60vw;
+	height:10vw;
+    float:left;
+    background-color:pink;
+    margin-top: 0px;
+	padding-bottom:100%;
+}
+#cnvsFrame {
+    
+    padding-bottom:100%;
+}
+.flc {
+    
+    margin:10px;
+	margin-top:30px;
+    width:13%;
+	float:left;
+}
+
+
+body {
+     position: fixed;
+     overflow-y:scroll
+}
+</style>
+</head>
+<body>
+<div id="container">
+    <div id="cnvsFrame">
+        <canvas id="cnvs"></canvas>
+    </div>
+</div>
+<div id="init" style="margin: 10px;  height:px; float:left">
+<br>
+User Name:
+    <input id="user" type="text" value="Ding sheep" >
+    <br/>
+    <br/>
+    <button id="login" style="margin:10px">Login</button><button id="clear" style="margin:10px">clear</button>
+<button id="reload" style="margin:10px">reload</button>
+        <p id='greeting'></p>
+<button id="printLog" style="margin:10px">Print log</button>
+<br>
+<font face="fantasy" size = "20">Time:
+<div id="countdown" style="margin:10px" align="center" ></div><font face="fantasy">
+<font face="fantasy" size = "20">life:
+<div id="life" style="margin:10px" align="center" ></div><font face="fantasy">
+<font face="fantasy" size = "20">Scores:
+<div id="score" style="margin:10px" align="center" ></div><font face="fantasy">
+</div>
+<audio id="oversound"  style="display:none">
+<source src="sounds/gameover.wav" type='audio/wav'>
+</audio>
+<audio id="pongsound"  style="display:none">
+<source src="sounds/pong.wav" type='audio/wav'>
+</audio>
+<audio id="cpongsound"  style="display:none">
+<source src="sounds/cpong.wav" type='audio/wav'>
+</audio>
+<audio id="eatsound"  style="display:none">
+<source src="sounds/eat.wav" type='audio/wav'>
+</audio>
+<script src="http://cdnjs.cloudflare.com/ajax/libs/three.js/r70/three.min.js"></script>
+<script src="https://dl.dropboxusercontent.com/u/3587259/Code/Threejs/OrbitControls.js"> 
+</script>
+<script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
+<script src='js/threex.text.js'></script>
+<script src="js/fonts/droid/droid_serif_bold.typeface.js"></script>
+<script id="vertexShader" type="x-shader/x-vertex">
+    varying vec2 vUv;
+    
+    void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+</script>
+<script id="fragmentShader" type="x-shader/x-fragment">
+    uniform float time;
+    varying vec2 vUv;
+    
+    float rand(vec2 co) {
+        return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
+    }
+
+    void main(void) {
+        // Divide the coordinates into a grid of squares
+    vec2 v = vUv*20.0; //gl_FragCoord.xy / 20.0;
+        // Calculate a pseudo-random brightness value for each square
+        vec3 brightness = vec3(fract(rand(floor(v)) + time), fract(rand(floor(v)) + time / 3.), fract(rand(floor(v)) + time / 5.));
+        // Reduce brightness in pixels away from the square center
+        brightness *= 0.5 - length(fract(v) - vec2(0.5, 0.5));
+        gl_FragColor = vec4(brightness.r * 4.0, brightness.g * brightness.b * 2., brightness.b - brightness.r + 0.2, 1.0);
+    }
+</script>
+<!--script src="js/r69/three.min.js"></script>
+<script src="js/OrbitControls.js"> 
+</script>
+<script src="js/jquery-1.11.3.min.js"></script-->
+<script>
+var camera, scene, renderer, geometry, material, mesh, controls;
+var clock = new THREE.Clock();
+var pucks = [];
+var which = 1;
+var raycaster;
+var mouse = new THREE.Vector2();
+var pickables = [];
+var g = true;
+var records = [];
+var namet;
+var countdownnumber=30;
+var countdownid;
+var sceneBack, cameraBack;
+var meshMaterial;
+var wp=0;
+var ct = 0.1;
+var userlife = 5;
+var s = 0;
+$("#login").click(function () {
+	if(g === false){}
+	else{
+	animate();
+	////////////////////Timer/////////////////////////////
+	countdownfunc();
+    var name = document.getElementById('user').value;
+    alert(name + " is playing");
+	namet = name;
+    var result = searchUser(name);
+    if (result >= 0) {
+        document.getElementById('greeting').innerHTML = "Your high score: " + result;
+    } else {
+        document.getElementById('greeting').innerHTML = "Welcome!";
+    }
+	}
+});
+
+$("#printLog").click(function () {
+    $("#init").toggle();
+    // document.getElementById("init").hide();
+
+    var objStr = localStorage.getItem("scores");
+
+    var record_new = JSON.parse(objStr);
+
+    for (var i = 0; i < record_new.length; i++)
+    alert(record_new[i].name + ": " + record_new[i].score);
+});
+$("#clear").click(function(){
+    localStorage.removeItem("scores");
+    alert("clear all cache")
+});
+
+$("#reload").click(function(){
+    window.location.reload();
+});
+
+
+var t = -1;
+function searchUser(name) {
+    for (var i = 0; i < records.length; i++) {
+        if (records[i].name === name) {
+			if(records[i].score > t)
+			 {t = records[i].score;
+			}
+			
+		
+            
+        }
+    }
+	return t;
+
+}
+
+
+var Puck = function () {
+    this.vel = new THREE.Vector3();
+    this.pos = new THREE.Vector3();
+    this.pColor = new THREE.Color();
+    this.mesh = new THREE.Mesh();
+    this.pointLight = new THREE.PointLight(0xffffff, 0.3);
+    this.life = true
+};
+
+Puck.prototype.update = function (dt) {
+    if(this.life === false)
+    {this.mesh.visible = false; 
+    this.pos.add(this.vel.clone().multiplyScalar(dt));
+    this.mesh.position.copy(this.pos);
+    this.pointLight.position.set(this.pos.x, 10, this.pos.z);
+    this.pointLight.color = this.pColor;
+    this.mesh.material.color = this.pColor;
+    this.pointLight.intensity = 0;
+    }
+    else if(this.life ===true){
+    this.pos.add(this.vel.clone().multiplyScalar(dt));
+    this.mesh.position.copy(this.pos);
+    this.pointLight.position.set(this.pos.x, 10, this.pos.z);
+    this.pointLight.color = this.pColor;
+    this.mesh.material.color = this.pColor;
+    }
+};
+
+Puck.prototype.collision = function () {
+    // collision
+    if (this.pos.x > 100) {
+		if(this.mesh.visible === true){pongsound.play();}
+        this.pos.x = 100;
+        this.vel.set(-this.vel.x, 0, this.vel.z);
+        this.pColor.setHSL(Math.random(), Math.random(), Math.random() / 2 + 0.5);
+
+    } else if (this.pos.x < -100) {
+		if(this.mesh.visible === true){pongsound.play();}
+        this.pos.x = -100;
+        this.vel.set(-this.vel.x, 0, this.vel.z);
+        this.pColor.setHSL(Math.random(), Math.random(), Math.random() / 2 + 0.5);
+    }
+    if ((this.pos.z > 100 && this.pos.x > 30-wp) || (this.pos.z > 100 && this.pos.x < -30+wp)) {
+		if(this.mesh.visible === true){pongsound.play();}
+        this.pos.z = 100;
+        this.vel.set(this.vel.x, 0, -this.vel.z);
+        this.pColor.setHSL(Math.random(), Math.random(), Math.random() / 2 + 0.5);
+
+    } else if ((this.pos.z < -100 && this.pos.x > 30-wp) || (this.pos.z <- 100 && this.pos.x < -30+wp)) {
+		if(this.mesh.visible === true){pongsound.play();}
+        this.pos.z = -100;
+        this.vel.set(this.vel.x, 0, -this.vel.z);
+        this.pColor.setHSL(Math.random(), Math.random(), Math.random() / 2 + 0.5);	
+
+    } else if(Math.abs((this.pos.x - paddle.position.x)) < 15 && Math.abs((this.pos.z - paddle.position.z)) < 3)
+    {  
+     if(this.mesh.visible === true)  {cpongSound.play();}
+	
+	 this.pos.z = 90;
+     this.vel.set(this.vel.x, 0, -this.vel.z);
+     this.pColor.setHSL(Math.random(), Math.random(), Math.random() / 2 + 0.5);}
+	 else if(Math.abs((this.pos.x - paddle1.position.x)) < 15 && Math.abs((this.pos.z - paddle1.position.z)) < 3)
+    {  
+	 if(this.mesh.visible === true)  {cpongSound.play();}	
+	 this.pos.z = -90;
+     this.vel.set(this.vel.x, 0, -this.vel.z);
+     this.pColor.setHSL(Math.random(), Math.random(), Math.random() / 2 + 0.5);}
+		
+    if ((this.pos.z > 100 && this.pos.x < 30 && this.mesh.visible === true) || (this.pos.z > 100 && this.pos.x > -30 && this.mesh.visible === true)) {
+        earSound.play();
+		this.life = false;
+		userlife--;	
+    } else if ((this.pos.z < -100 && this.pos.x < 30 && this.mesh.visible === true) || (this.pos.z < -100 && this.pos.x > -30 && this.mesh.visible === true)) {
+          earSound.play();
+		  this.life = false;
+		  userlife--;	
+    }
+   
+    
+}
+
+init();
+
+
+function newPuck() {
+    var puck = new Puck();
+    puck.pos = new THREE.Vector3(0, 1, 0);
+    puck.vel = new THREE.Vector3(100+(160 * (Math.random() * 2 - 1)), 0, 100+(170 * (Math.random() * 2 - 1)));
+	//puck.vel = new THREE.Vector3(0,0,100);
+    puck.pColor = new THREE.Color(0xff0000);
+    puck.mesh = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 2, 20),
+    new THREE.MeshBasicMaterial());
+    puck.mesh.material.color = puck.pColor;
+    scene.add(puck.mesh);
+    scene.add(puck.pointLight);
+    return puck;
+}
+var text = "";
+function init() {
+	
+    var theCanvas = document.getElementById("cnvs");
+    var theCanvasFrame = document.getElementById("cnvsFrame");
+ 
+//////////////////////////////////////////////////////////////////////////////////////
+    renderer = new THREE.WebGLRenderer({
+        canvas: theCanvas,
+        antialias: true
+    });
+   //////////////////////////////////////shadermaterial//////////////////////////////
+	meshMaterial = new THREE.ShaderMaterial({
+	    transparent: true,
+        opacity: 0.315,
+        uniforms: {
+            time: {
+                type: 'f',
+                value: 1.0
+            }
+        },
+        vertexShader: document.getElementById('vertexShader').textContent,
+        fragmentShader: document.getElementById('fragmentShader').textContent
+    });
+
+	//////////////////////////////////////background//////////////////////////////////
+	/////////////////////////////////////////////
+    sceneBack = new THREE.Scene();
+    cameraBack = new THREE.OrthographicCamera(-10, 10, 10, -10, 1, 100);
+    cameraBack.position.z = 5;
+    cameraBack.lookAt(new THREE.Vector3(0, 0, 0));
+
+    THREE.ImageUtils.crossOrigin = '';
+   
+
+    var back = new THREE.Mesh(new THREE.PlaneGeometry(20, 20),
+    meshMaterial
+    );
+	renderer.autoClear = false;
+    back.material.depthTest = false;
+    back.material.depthWrite = false;
+    sceneBack.add(back);
+	
+    ww = theCanvasFrame.clientWidth;
+    hh = theCanvasFrame.clientHeight;
+    renderer.setSize(ww, hh);
+    renderer.setClearColor(0x222222);	
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(50, ww / hh, 1, 1000);
+    camera.position.z = 500;
+    camera.position.y = 300;
+	camera.lookAt(new THREE.Vector3( 0, 0, 0 ));
+    scene.add(camera);
+    geometry2 = new THREE.BoxGeometry(30,30,10);
+    geometry1 = new THREE.BoxGeometry(80, 30, 10);
+    geometry = new THREE.BoxGeometry(220, 30, 10);
+    material = new THREE.MeshBasicMaterial({
+        transparent: true,
+        color: 0xffffff,
+        opacity: 0.4
+    });
+    material1 = new THREE.MeshBasicMaterial({
+        
+        color: 0x880000,
+        opacity: 0.4
+    });
+    paddle = new THREE.Mesh(geometry2, material1);
+    paddle1 = new THREE.Mesh(geometry2, material1);
+    paddle.position.set(0,15,95);
+    paddle1.position.set(0,15,-95);
+    scene.add(paddle);
+    scene.add(paddle1);
+    mesh = new THREE.Mesh(geometry1, material);
+    mesh.position.set(-70-wp, 15, 105);
+    mesha = new THREE.Mesh(geometry1, material);
+    mesha.position.set(70+wp, 15, -105);
+    scene.add(mesh);
+    scene.add(mesha);
+    mesh2 = new THREE.Mesh(geometry1, material);
+    mesh2.position.set(-70-wp, 15, -105);
+    mesh2a = new THREE.Mesh(geometry1, material);
+    mesh2a.position.set(70+wp, 15, 105);
+
+    scene.add(mesh2);
+    scene.add(mesh2a);
+    mesh3 = new THREE.Mesh(geometry, material);
+    mesh3.rotation.y = Math.PI / 2;
+    mesh3.position.set(105, 15, 0);
+    scene.add(mesh3);
+    mesh4 = mesh3.clone();
+    mesh4.rotation.y = Math.PI / 2;
+    mesh4.position.set(-105, 15, 0);
+    scene.add(mesh4);
+
+    ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200, 130, 130),
+    new THREE.MeshLambertMaterial({
+        color: 0xffffff
+    }));
+
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+    
+    
+    var gridXZ = new THREE.GridHelper(100, 10);
+    gridXZ.setColors(new THREE.Color(0xff0000), new THREE.Color(0xffffff));
+	//scene.add(gridXZ);
+
+    var ambientLight = new THREE.AmbientLight(0x111111);
+    scene.add(ambientLight);
+
+   // document.body.appendChild(renderer.domElement);
+	window.addEventListener ('resize', onWindowResize, false);
+    // add first puck
+    pucks.push(newPuck());
+    // add remaining pucks, invisible and zero intensity
+    
+    for (var i = 1; i < 10; i++) {
+        var thispuck = newPuck();
+        thispuck.mesh.visible = false;
+        thispuck.pointLight.intensity = 0;
+        pucks.push(thispuck);
+    }
+    //controls = new THREE.OrbitControls(camera, renderer.domElement);
+    // start first new puck
+    setTimeout (startNewPuck, 1000);
+    ////////////////////////mouse///////////////////////////
+    raycaster = new THREE.Raycaster();
+     pickables = [ground];
+    theCanvas.addEventListener('mousedown', onDocumentMouseDown, false);
+    theCanvas.addEventListener('mousemove', onDocumentMouseMove, false);
+	///////////////////////storage init////////////////////  
+	
+	var objStr = localStorage.getItem("scores");
+	var record_new = JSON.parse(objStr);
+	if(record_new != null){
+	for (var i = 0; i < record_new.length; i++){
+	console.log(record_new[i]);
+	records.push({
+        name: record_new[i].name,
+        score: record_new[i].score
+    });}}
+	//////////////////////////////////////////////////////////////////////////////////
+	//		add a text								//
+	//////////////////////////////////////////////////////////////////////////////////
+
+	text = "Game";
+	text1 = "Over";
+	meshc	= new THREEx.Text(text);
+	meshc.scale.multiplyScalar(30);
+	meshc.position.y	= +136;
+	meshc.position.x = -80;
+	//scene.add(mesh);
+	mesh1c	= new THREEx.Text(text1);
+	mesh1c.scale.multiplyScalar(30);
+	mesh1c.position.y	= +136;
+	mesh1c.position.x	= +80;
+	//scene.add(mesh1);
+	
+
+    ///////////////////////sound/////////////////////////
+	overSound = document.getElementById ('oversound');
+	pongSound = document.getElementById ('pongsound');
+	cpongSound = document.getElementById ('cpongsound');
+	earSound = document.getElementById ('eatsound');
+}
+function onWindowResize ()
+{
+	camera.aspect = ww / hh;
+	camera.updateProjectionMatrix();
+	renderer.setSize (ww, hh);
+}
+
+function startNewPuck() {
+    //console.log (which);
+    pucks[which].mesh.visible = true;
+    pucks[which].pointLight.intensity = 0.3;
+    which++;
+  
+    if (which <= 9)
+        setTimeout (startNewPuck, 1000);
+}
+
+function check(){
+ if( pucks[1].mesh.visible === false && pucks[2].mesh.visible === false && pucks[3].mesh.visible === false && pucks[4].mesh.visible === false && pucks[5].mesh.visible === false && pucks[6].mesh.visible === false && pucks[7].mesh.visible === false && pucks[8].mesh.visible === false && pucks[9].mesh.visible === false && pucks[0].mesh.visible === false  )
+ {
+  g=false;
+  s = 0;
+  }
+ else if (countdownnumber === 0 ) 
+ {
+  for(var i =0 ; i<=9; i++){if(pucks[i].mesh.visible===true) {s+=1000;}  }
+  g = false;
+}
+  else if (userlife === 0)
+  {
+  s=(30-countdownnumber)*30;
+  g = false;
+  }
+  
+  
+}
+function onDocumentMouseDown(event) {
+
+    // PICKING DETAILS: 
+    // convert mouse.xy = [-1,1]^2 (NDC)
+    // unproject (mouse.xy, 1) to a point on the far plane (in world coordinate)
+    // set raycaster (origin, direction)
+    // find intersection objects, (closest first) 
+    // each record as
+    // [ { distance, point, face, faceIndex, object }, ... ]
+
+    event.preventDefault();
+    mouse.x = (event.clientX / ww) * 2 - 1;
+    mouse.y = -(event.clientY / hh) * 2 + 1;
+
+    // find intersections
+    var vector = new THREE.Vector3(mouse.x, mouse.y, 1).unproject(camera);
+    raycaster.set(camera.position, vector.sub(camera.position).normalize());
+
+}
+
+function onDocumentMouseMove(event) {
+    event.preventDefault();
+    mouse.x = (event.clientX / ww) * 2 - 1;
+    mouse.y = -(event.clientY / hh) * 2 + 1;
+   
+    var vector = new THREE.Vector3(mouse.x, mouse.y, 1).unproject(camera);
+
+
+    raycaster.set(camera.position, vector.sub(camera.position).normalize());
+    var intersects = raycaster.intersectObjects(pickables);
+    if (intersects.length > 0) {
+        document.body.style.cursor = 'pointer';
+    } else {
+        document.body.style.cursor = 'auto';
+    }
+    if (intersects.length > 0) {
+   
+        paddle.position.x = intersects[0].point.x;
+        paddle1.position.x = intersects[0].point.x;
+
+
+    }
+}
+function countdownfunc(){
+ var z=document.getElementById("score");
+ z.innerHTML=s;	
+ var y=document.getElementById("life");
+ y.innerHTML=userlife;	
+ var x=document.getElementById("countdown");
+ x.innerHTML=countdownnumber;
+ if (countdownnumber==0){ 
+
+  clearTimeout(countdownid);
+ }else{
+  countdownnumber--;
+  if(countdownid){
+   clearTimeout(countdownid);
+  }
+  countdownid=setTimeout(countdownfunc,1000);
+ }
+}
+function open(){
+	if(wp > -15)
+	wp-=ct;
+}
+function open1(){
+	if(wp > -25)
+	wp-=ct;
+}
+function animate() {
+
+    var dt = clock.getDelta();
+    //controls.update();
+    pucks.forEach(function (puck) {
+        puck.update(dt);
+        puck.collision();
+    });
+	check();
+    meshMaterial.uniforms.time.value += dt * 2;
+    if(g === true){
+	
+	if(countdownnumber < 25)
+	open();
+	if(countdownnumber < 20)
+	open1();
+	mesh.position.set(-70+wp, 15, 105);
+    mesha.position.set(70-wp, 15, -105);
+    mesh2.position.set(-70+wp, 15, -105);
+    mesh2a.position.set(70-wp, 15, 105);
+
+    requestAnimationFrame(animate);
+	renderer.render(sceneBack, cameraBack);
+    renderer.render(scene, camera);
+	}
+    else{ 
+	scene.add(meshc);
+	scene.add(mesh1c);
+	overSound.play();
+	renderer.render(scene, camera);
+	console.log(namet);
+	records.push({
+        name: namet,
+        score: s
+    });
+	var objStr = JSON.stringify(records);
+    localStorage.setItem("scores", objStr);
+	countdownnumber =0;
+	}
+}
+
+</script>
+
+</body>
+
+</html>
