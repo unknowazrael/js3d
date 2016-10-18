@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+#info {
+    position: absolute;
+    top: 0px;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    color: #ff0000
+}
+</style>
+</head>
+
+<body>
+<div id="info">DOOR <br>
+<a href="javascript:toggle(state);">PLAY</a>
+<a href="javascript:t(s);">STOP</a><br>
+
+</div>
+
+<audio id="opensound" style="display:none">
+<source src="sounds/open.wav" type='audio/mp3'>
+<audio id="closesound" style="display:none">
+<source src="sounds/cl.wav" type='audio/wav'>
+</audio>
+<audio id="ocsound" style="display:none">
+<source src="sounds/oc.wav" type='audio/wav'>
+</audio>
+<script src="//cdnjs.cloudflare.com/ajax/libs/three.js/r70/three.min.js"></script>
+<script src="https://dl.dropboxusercontent.com/u/3587259/Code/Threejs/OrbitControls.js"></script>
+<script src="js/dat.gui.min.js"></script>
+<script src="js/dat.gui.min.js"></script>
+<script>
+var camera, scene, renderer, light, controls;
+var frame;
+var angle = 0.017;
+var state = false;
+var s = false;
+var openSound,closeSound;
+init();
+animate();
+
+function init() {
+     
+    openSound = document.getElementById ('opensound');
+	closeSound = document.getElementById ('closesound');
+	ocSound = document.getElementById ('ocsound');
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
+    camera.position.z = 150; camera.position.y = 100;
+    scene.add(camera);
+    //////////////////////////////////////////////////////////////////
+    frame = new THREE.Object3D();
+    scene.add(frame);
+
+    //columnGeom = new THREE.BoxGeometry(4, 50, 4);
+    //platformGeom = new THREE.BoxGeometry(30, 4, 4);
+    //platformGeom1 = new THREE.BoxGeometry(30, 2, 4);
+    material = new THREE.MeshLambertMaterial();
+
+    var mesh = createMesh(new THREE.BoxGeometry(4, 50, 4), "wood1.jpg","wood1-bump.jpg");
+    var mesh1 = createMesh(new THREE.BoxGeometry(26, 2, 4), "wood1.jpg","wood1-bump.jpg");
+    var mesh2 = mesh.clone();
+    var mesh3 = createMesh(new THREE.BoxGeometry(26, 4, 4), "wood1.jpg","wood1-bump.jpg");
+    mesh.position.set(2, 25, -2);
+    mesh2.position.set(2 + 30, 25, -2);
+
+    mesh1.position.set(17, 1, -2);
+    mesh3.position.set(17, 2 + 46, -2);
+    frame.add(mesh);
+    frame.add(mesh1);
+    frame.add(mesh2);
+    frame.add(mesh3);
+    ///////////////////////////////////////////////////////////////////
+    door = new THREE.Object3D();
+    scene.add(door);
+	var material2 = new THREE.MeshBasicMaterial( {color: 0xccbf00} );
+    //doorGeom = new THREE.BoxGeometry(26, 44, 4);
+    //material1 = new THREE.MeshLambertMaterial();
+	doorhandle = new THREE.CylinderGeometry( 0.5, 0.5, 2, 32 );
+    doorhandle1 = new THREE.SphereGeometry( 1, 32, 32 );
+    var mesh4 = createMesh(new THREE.BoxGeometry(26, 44, 4), "wood1.jpg","wood1-bump.jpg");
+	var mesh5 = createMesh(new THREE.CylinderGeometry( 0.5, 0.5, 2, 32 ), "metal.jpg");
+	var mesh6 = createMesh(new THREE.SphereGeometry( 1.5, 32, 32 ), "metal.jpg");
+	var mesh7 = createMesh(new THREE.CylinderGeometry( 0.5, 0.5, 2, 32 ), "metal.jpg");
+	var mesh8 = createMesh(new THREE.SphereGeometry( 1.5, 32, 32 ), "metal.jpg");
+	var mesh9 = createMesh(new THREE.BoxGeometry( 0.5, 5, 3, 32 ), "bolt.jpg");
+	var mesh10 = mesh9.clone();
+    mesh4.position.set(-(4+9), 21 + 3, -2);
+	mesh5.position.set(-20,25,1);
+	mesh5.rotation.x = Math.PI/2;
+	mesh6.position.set(-20,25,2.5);
+	mesh7.position.set(-20,25,-5);
+	mesh7.rotation.x = Math.PI/2;
+	mesh8.position.set(-20,25,-6.5);
+	mesh9.position.set(0,10,-1.5);
+	mesh10.position.set(0,35,-1.5);
+	
+    door.add(mesh4);
+	door.add(mesh5);
+	door.add(mesh6);
+	door.add(mesh7);
+	door.add(mesh8);
+	door.add(mesh9);
+	door.add(mesh10);
+    door.position.set(30,0,0); 
+    ////////////////////////////////////////////////////////////////////
+	var geometry = new THREE.CylinderGeometry( 0.5, 0.5, 5, 32 ); 
+    var mesh11 = mesh9.clone();
+	var mesh12 = mesh9.clone();
+    var cylinder = createMesh(new THREE.CylinderGeometry( 0.5, 0.5, 5, 32 ), "bolt.jpg");
+    scene.add( cylinder );
+	cylinder1 = cylinder.clone();
+    scene.add(cylinder1);
+    cylinder.position.set(30,10,0.5);
+    cylinder1.position.set(30,35,0.5);	
+	mesh11.position.set(30,10,-2);
+	mesh12.position.set(30,35,-1.9);
+	scene.add(mesh11);
+	scene.add(mesh12);
+	
+    ////////////////////////////////////////////////////////////////////
+    light = new THREE.PointLight(0xffffff);
+    light.position.set(100, 200, 200);
+    scene.add(light);
+    
+    
+    light1 = new THREE.PointLight(0xffffff);
+    light1.position.set(-100, 300, -200);
+    scene.add(light1);
+
+
+    var gridXZ = new THREE.GridHelper(100, 10);
+    gridXZ.setColors(new THREE.Color(0xff0000), new THREE.Color(0xffffff));
+    scene.add(gridXZ);
+
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0xcccccc);
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    document.body.appendChild(renderer.domElement);
+	// setup the control gui
+        controlss = new function () {
+            this.bumpScale = 0.2;
+
+            this.updateBump = function (e) {
+        
+                 mesh4.material.bumpScale = e;
+            }
+        };
+
+
+        var gui = new dat.GUI();
+        gui.add(controlss, "bumpScale", 0, 1).onChange(controlss.updateBump);
+
+		window.addEventListener ('resize', onWindowResize, false);
+
+}
+function onWindowResize()
+{
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+	//webGLRenderer.setSize (window.innerWidth, window.innerHeight);
+}
+
+function createMesh(geom, imageFile, bump) 
+{
+	geom.computeVertexNormals();
+
+	var mat = new THREE.MeshPhongMaterial();
+	var texture = THREE.ImageUtils.loadTexture("images/" + imageFile)
+	mat.map = texture;
+
+	if (bump) {
+		var bump = THREE.ImageUtils.loadTexture("images/" + bump)
+		mat.bumpMap = bump;
+		mat.bumpScale = 0.2;
+	}
+
+	var mesh = new THREE.Mesh(geom, mat);
+
+	return mesh;
+}
+function animate() {
+    controls.update();
+    requestAnimationFrame(animate);
+    render();
+}
+function toggle(){
+    s=false;
+	openSound.pause();
+	openSound.currentTime = 0
+	ocSound.pause();
+	ocSound.currentTime = 0
+    state = !state;
+	
+	//console.log(state);
+}
+function t(){
+    s=true;
+	openSound.pause();
+	openSound.currentTime = 0
+	ocSound.pause();
+	ocSound.currentTime = 0
+	//console.log(s);
+    }
+function render() {
+    if (door.rotation.y < 1.5 && state ==true && s==false) {
+	//console.log(door.rotation.y);
+	openSound.play();
+	
+	if(door.rotation.y > 1.45) {openSound.pause();}	
+    door.rotation.y +=angle;}
+	
+	else if (door.rotation.y > 0 && state ==false && s==false){
+	//console.log(door.rotation.y);
+	ocSound.play();
+	if (s==true) {ocSound.pause();s=false;}
+	if (door.rotation.y <= 0.1){closeSound.play(); ocSound.pause();}
+	door.rotation.y -=angle;
+	}
+  
+	
+    renderer.render(scene, camera);
+    
+}
+</script>
+
+</body>
+
+</html>

@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+#info {
+    position: absolute;
+    top: 0px;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    color: #ffff00
+}
+</style>
+</head>
+<body>
+<div id="info">hw4  <br/>Arrow keys<br/>space<br>
+<a href="javascript:toggle(state);">toggle</a></div>
+<script src="http://cdnjs.cloudflare.com/ajax/libs/three.js/r70/three.min.js"></script>
+<script src="https://dl.dropboxusercontent.com/u/3587259/Code/Threejs/OrbitControls.js">    
+</script>
+<script src="http://jyunming-chen.github.io/tutsplus/js/KeyboardState.js"></script>
+<script type="x-shader/x-fragment" id="fragmentShaderDepth">
+    uniform sampler2D texture;
+    varying vec2 vUV;
+    vec4 pack_depth(const in float depth) {
+
+        const vec4 bit_shift = vec4(256.0 * 256.0 * 256.0, 256.0 * 256.0, 256.0, 1.0);
+        const vec4 bit_mask = vec4(0.0, 1.0 / 256.0, 1.0 / 256.0, 1.0 / 256.0);
+        vec4 res = fract(depth * bit_shift);
+        res -= res.xxyz * bit_mask;
+        return res;
+
+    }
+
+    void main() {
+
+        vec4 pixel = texture2D(texture, vUV);
+
+        if (pixel.a < 0.5) discard;
+
+        gl_FragData[0] = pack_depth(gl_FragCoord.z);
+
+    }
+</script>
+<script type="x-shader/x-vertex" id="vertexShaderDepth">
+    varying vec2 vUV;
+
+    void main() {
+
+        vUV = 1.0 * uv;
+
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+
+        gl_Position = projectionMatrix * mvPosition;
+
+    }
+</script>
+<script>
+var camera, scene, renderer, geometry, material, light, controls, material1;
+var clock = new THREE.Clock();
+var keyboard = new KeyboardState();
+var angle = 0, speed = 5;
+var rt, alpha, h, ly;
+var lsphere, light;
+
+var pa = new THREE.Vector3(0, 0, 0);
+var pb = new THREE.Vector3(0, 0, -38);
+var pc = new THREE.Vector3(0,0,0);
+var sa = 0;
+var sb = 0;
+var pointA, pointB, car,car1;
+var speedInfo;
+var k = 0;
+var jsonModel;
+var pilot;
+var xangle = 0;
+var zangle = 0;
+var sceneHUD, cameraHUD;
+var barA, barB;
+var sa, sb;
+var state = false;
+// state variables of toycar
+var pos = new THREE.Vector3(0,0,0);
+init();
+animate();
+
+function initHUD() {
+	sceneHUD = new THREE.Scene();
+    cameraHUD = new THREE.OrthographicCamera(-10, 10, 10, -10, 1, 100);
+    cameraHUD.position.z = 5;
+    cameraHUD.lookAt(new THREE.Vector3(0, 0, 0));
+
+    barA = new THREE.Object3D();
+    powerA = new THREE.Mesh(new THREE.PlaneGeometry(1, 4),
+    new THREE.MeshBasicMaterial({
+        color: 0xff1233,
+        opacity: 0.5,
+        side: THREE.DoubleSide,
+        transparent: true
+    }));
+    powerA.position.set(-2, 2, 0);
+    barA.add(powerA);
+    sceneHUD.add(barA);
+
+    barB = new THREE.Object3D();
+    powerB = new THREE.Mesh(new THREE.PlaneGeometry(1, 4),
+    new THREE.MeshBasicMaterial({
+        color: 0x2212ff,
+        opacity: 0.5,
+        side: THREE.DoubleSide,
+        transparent: true
+    }));
+    powerB.position.set(2, 2, 0);
+    barB.add(powerB);
+    sceneHUD.add(barB);
+   
+}
+function init() {
+    
+	initHUD();
+    scene = new THREE.Scene();
+	pilot = new THREE.Object3D();
+	pilot.rotation.y = Math.PI;
+	pilot.position.set(12,120,-60);
+    scene.add(pilot);
+
+    camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 10000000);
+    camera.position.y = 500;
+    camera.position.z= 500;
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
+    scene.add(camera);
+   
+    THREE.ImageUtils.crossOrigin = '';
+	var colormap2 = THREE.ImageUtils.loadTexture('http://i.imgur.com/i9NqStr.jpg');
+    var bump = THREE.ImageUtils.loadTexture('http://i.imgur.com/FqKGKyV.jpg');
+    var colormap = THREE.ImageUtils.loadTexture('images/tireside1.png');
+	var colormap3 = THREE.ImageUtils.loadTexture('images/solid.jpg');
+	var bcolormap = THREE.ImageUtils.loadTexture('images/metal.jpg');
+
+    tire = new THREE.Object3D();
+	tire1 = new THREE.Object3D();
+	car = new THREE.Object3D();
+	car1 = new THREE.Object3D();
+	steer = new THREE.Object3D();
+    geometry = new THREE.CircleGeometry(50, 40);
+    material = new THREE.MeshPhongMaterial({
+        map: colormap,
+        transparent: true,  // for cut-out texture
+        //side: THREE.DoubleSide
+    });
+	geometry1 = new THREE.CylinderGeometry(50, 50, 20, 40, 1, true);
+    material1 =  new THREE.MeshPhongMaterial({
+	    map: colormap2,
+		bumpMap:bump,
+        side: THREE.DoubleSide
+    });
+    var mesh = new THREE.Mesh(geometry, material);
+	bump.wrapS = bump.wrapT = THREE.RepeatWrapping; 
+	bump.repeat.set( 12, 1 );
+	colormap2.wrapS = colormap2.wrapT = THREE.RepeatWrapping; 
+	colormap2.repeat.set( 12, 1 );
+    var mesh2 = new THREE.Mesh(geometry1, material1);
+     var uniforms = {
+        texture: {
+            type: "t",
+            value: colormap
+        }
+    };
+    var vertexShader = document.getElementById('vertexShaderDepth').textContent;
+    var fragmentShader = document.getElementById('fragmentShaderDepth').textContent;
+    mesh.customDepthMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader
+    });
+    mesh2.rotation.x = Math.PI / 2;
+    mesh.position.set(0, 0, 10);
+	meshc = mesh.clone();
+	meshc.customDepthMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader
+    });
+
+	
+    mesh0 = mesh.clone();
+	mesh0.customDepthMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader
+    });
+    mesh0.position.set(0, 0, -10);
+	mesh0c = mesh0.clone();
+	mesh0c.customDepthMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader
+    });
+	
+    mesh0.rotation.y = Math.PI;
+	
+    meshc.rotation.y = Math.PI;
+	
+	//console.log('mesh.y'+mesh0.rotation.y);
+	//console.log('meshc.y'+mesh0c.rotation.y);
+	
+    tire.add (mesh);
+	tire.add (meshc);
+	tire.add (mesh0c);
+    tire.add(mesh0);
+    tire.add(mesh2);
+	
+	cmesh = mesh.clone();
+	cmesh1 = meshc.clone();
+	cmesh2 = mesh0c.clone();
+	cmesh3 = mesh0.clone();
+	cmesh4 = mesh2.clone();
+	
+	tire1.add(cmesh);
+	tire1.add(cmesh1);
+	tire1.add(cmesh2);
+	tire1.add(cmesh3);
+	tire1.add(cmesh4);
+	
+	
+	//tire.position.set(0,15,0);
+    scene.add(tire);
+	//tire1=tire.clone();
+	scene.add(tire1);
+	tire.scale.set(0.7,0.7,0.8);
+	tire1.scale.set(0.7,0.7,0.8);
+	tire.position.set (0,35,0);
+	tire1.position.set (0,35,-120);
+	car1.add(tire);
+	car1.add(tire1);
+
+
+ 
+	/////////////////////////////////////////////////////////////////////////////////////////
+	material1 = new THREE.MeshBasicMaterial({
+        map: bcolormap,
+		color: 0x333333,
+        transparent: true,  // for cut-out texture
+        side: THREE.DoubleSide
+    });
+	material2 = new THREE.MeshBasicMaterial({
+        map: bcolormap,
+        transparent: true,  // for cut-out texture8
+        side: THREE.DoubleSide
+    });
+	material3 = new THREE.MeshBasicMaterial({
+        map: bcolormap,
+        transparent: true,  // for cut-out texture
+        side: THREE.DoubleSide
+    });
+	var bmesh = new THREE.Mesh(new THREE.BoxGeometry(105, 15,60),material1);
+    var bmesh1 = new THREE.Mesh(new THREE.CylinderGeometry(6, 6,150,50),material2);
+    var bmesh2 = new THREE.Mesh(new THREE.CylinderGeometry(5, 5,80,50),material3);
+    bmesh.rotation.y =Math.PI/2;	
+	bmesh.position.set(0,7.5+10,-60);
+	bmesh1.position.set(-28,90,-60);
+    bmesh1.rotation.z =Math.PI/26;
+	bmesh2.position.set(-36.7,167,-60);
+    bmesh2.rotation.x =Math.PI/2;
+	steer.add(bmesh1);
+	steer.add(bmesh2);
+	
+	
+    if (car1 != undefined) { 
+        car1.scale.set (0.3,0.3,0.3);
+	}
+    car1.add(pilot);
+	car1.add(bmesh);
+	car1.add(steer);
+	car1.position.set(0,0,18);
+	car.add(car1);
+	scene.add(car);
+    // lamp parameters
+    ly = 200;
+    rt = 20;
+    h = 50;
+    alpha = Math.PI / 6;
+    var rb = rt + h * Math.tan(alpha);
+
+    geometry = new THREE.CylinderGeometry(rt, rb, h, 20, 1, true);
+    material3 = new THREE.MeshPhongMaterial({
+        //side: THREE.DoubleSide,
+     
+      
+		map: colormap3
+    });
+    mesh3 = new THREE.Mesh(geometry, material3);
+    mesh3.position.setY(-h / 2); // so that top face is on XZ plane
+
+    lamp = new THREE.Object3D();
+    lamp.add(mesh3);
+    lamp.position.setY(ly);
+    scene.add(lamp);
+ /////////////////////////////////////////////////
+     pointA = new THREE.Mesh(new THREE.CircleGeometry(2),
+    new THREE.MeshBasicMaterial({
+        color: 0xff0000
+    }));
+    pointB = new THREE.Mesh(new THREE.CircleGeometry(2),
+    new THREE.MeshBasicMaterial({
+        color: 0x0000ff
+    }));
+    pointC = new THREE.Mesh(new THREE.CircleGeometry(2),
+    new THREE.MeshBasicMaterial({
+        color: 0xffff00
+    }));
+    pointA.position.copy(pa);
+    pointB.position.copy(pb);
+    pointC.position.copy(pc);
+	pointA.rotation.x = Math.PI/2;
+    pointB.rotation.x = Math.PI/2;
+    pointC.rotation.x = Math.PI/2;
+    scene.add(pointA);
+    scene.add(pointB);
+   // scene.add(pointC);
+ 
+
+    // spotlight
+	var angle1 = 0;
+    light = new THREE.SpotLight(0xffffff, 1.5);
+    light.position.set(0, ly, 0);
+    light.angle1 = alpha;
+    light.exponent = 30;
+    scene.add(light);
+    light.target = car; 
+	
+	// FLOOR
+    var floorTexture = new THREE.ImageUtils.loadTexture( 'images/floor.jpg' );
+	var floorMaterial = new THREE.MeshLambertMaterial( { map: floorTexture, side: THREE.DoubleSide } );
+    var floor = new THREE.Mesh(new THREE.PlaneGeometry(400, 400, 30, 30),
+    floorMaterial);
+
+    floor.rotation.x = -Math.PI / 2;
+    scene.add(floor);
+	// light follows the box
+    //////////////////////////
+    light.castShadow = true;
+    light.shadowCameraNear = 2;
+	light.shadowCameraFar = camera.far;
+	light.shadowCameraFov = 50;  // in degrees
+	light.shadowBias = -0.00022;
+	light.shadowDarkness = 0.5;
+	light.shadowMapWidth = 2048;
+	light.shadowMapHeight = 2048;
+	scene.add( light );
+
+	
+ 
+	floor.castShadow = true; floor.receiveShadow = true;
+    meshc.castShadow = true; meshc.receiveShadow = true;
+	mesh.castShadow = true; mesh.receiveShadow = true;
+	mesh0.castShadow = true; mesh0.receiveShadow = true;
+	mesh0c.castShadow = true; mesh0c.receiveShadow = true;
+	mesh2.castShadow = true; //mesh2.receiveShadow = true;
+	
+	cmesh.castShadow = true; cmesh.receiveShadow = true;
+	cmesh1.castShadow = true; cmesh1.receiveShadow = true;
+	cmesh2.castShadow = true; cmesh2.receiveShadow = true;
+	cmesh3.castShadow = true; cmesh3.receiveShadow = true;
+	cmesh4.castShadow = true; cmesh4.receiveShadow = true;
+	
+	bmesh.castShadow = true; bmesh.receiveShadow = true;
+	bmesh1.castShadow = true; bmesh1.receiveShadow = true;
+	bmesh2.castShadow = true; bmesh2.receiveShadow = true;
+
+	
+	
+	tire.traverse(function (mesh) {
+        if (mesh instanceof(THREE.Mesh)) mesh.castShadow = true;
+    });
+
+	
+   
+
+    var amblight = new THREE.AmbientLight(0x888888); // soft white light
+    scene.add(amblight);
+	
+    //light = new THREE.PointLight(0xffffff);
+    //light.position.set(100, 300, 200);
+    //scene.add(light);
+
+    var gridXZ = new THREE.GridHelper(100, 10);
+    gridXZ.setColors(new THREE.Color(0xff0000), new THREE.Color(0xffffff));
+    //scene.add(gridXZ);
+    ////////////////////////////////////////////////////////////
+	var jsonLoader = new THREE.JSONLoader();
+    jsonLoader.load("models/devil.js", addModelToScene);
+
+	
+	
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x333333);
+    document.body.appendChild(renderer.domElement);
+    renderer.autoClear = false;
+	
+	renderer.shadowMapEnabled = true;
+	renderer.shadowMapType = THREE.PCFShadowMap;
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    document.body.appendChild(renderer.domElement);
+}
+function addModelToScene(geometry, materials) {
+    //var material = new THREE.MeshFaceMaterial(materials);
+	var material = new THREE.MeshBasicMaterial(
+				{
+				
+					map: THREE.ImageUtils.loadTexture("http://i.imgur.com/ESiwWtR.png"),
+					morphTargets: true, morphNormals: true
+				});
+    jsonModel = new THREE.Mesh(geometry, material);
+    jsonModel.scale.set(3, 4, 3);
+    jsonModel.rotation.y = Math.PI; // default: back face +z
+	jsonModel.castShadow = true; jsonModel.receiveShadow = true;
+    pilot.add(jsonModel);
+}
+function update(dt)
+{
+    
+    var center = new THREE.Vector3();
+    var tmp = new THREE.Vector3();
+    var l = tmp.subVectors(pa, pb).length();
+    k = l * sa / (sb - sa);
+    var omega = (sb - sa) / l;
+
+    //if (omega === 0.0) {
+    if (Math.abs(sa-sb) < 1e-5) {    // this gives better result (no jerk)
+    tmp.subVectors(pa, pb).normalize().cross(new THREE.Vector3(0, 1, 0)).multiplyScalar(sa * dt);
+        pa.add(tmp);
+        pb.add(tmp);
+        pointA.position.copy(pa);
+        pointB.position.copy(pb);
+		
+
+        return; // do a pure translation then return
+    }
+
+    tmp.subVectors(pa, pb).normalize().multiplyScalar(k);
+    center.copy(tmp.add(pa));
+
+    tmp.subVectors(pa, center).applyAxisAngle(new THREE.Vector3(0, 1, 0), omega * dt).add(center);
+    pa.copy(tmp);
+    tmp.subVectors(pb, center).applyAxisAngle(new THREE.Vector3(0, 1, 0), omega * dt).add(center);
+    pb.copy(tmp);
+
+    // normalize ...
+    //tmp.subVectors (pb,pa).normalize().multiplyScalar(l);
+    //pb.addVectors(tmp,pa);
+    
+    pointA.position.copy(pa);
+    pointB.position.copy(pb);
+    car.position.copy (center);
+	//////////////////////////////////////////////////////////////////////////////////////
+       
+
+}
+function animate()
+{
+
+
+	keyboard.update();
+
+    if (keyboard.pressed("left")) {sb += 3; xangle += 0.005; }
+	if (keyboard.pressed("up")) {sb += 3; sa+=3;  zangle -= 0.01; }
+    if (keyboard.pressed("down")) {sa -= 3; sb-=3;   zangle += 0.01;}
+    if (keyboard.pressed("right")) {sa += 3;  xangle -= 0.005;}
+    if (keyboard.pressed("space")) { // pause
+        zangle = xangle = 0;
+		sa = 0;
+		sb = 0;
+    }
+    xangle = myclamp(xangle, -0.1, 0.1);
+    zangle = myclamp(zangle, -0.2, 0.1);
+
+    // console.log (xangle + ", " + zangle);
+
+    pilot.rotation.z = zangle;
+    pilot.rotation.x = xangle;
+	
+	steer.rotation.z = -zangle;
+    steer.rotation.x = xangle;
+	
+	
+    sa = myclamp(sa, 0, 80);
+    sb = myclamp(sb, 0, 80);
+	sa *= 0.975;
+	sb *= 0.975;
+	xangle *= 0.975;
+	zangle *= 0.975;
+    
+	    // compute Sa and Sb
+    var forward = -zangle * 10;
+    var small = forward * (1 - Math.abs(xangle) / 0.1 * 1.8);
+	//console.log(small+"    "+forward);
+    
+	barA.scale.copy(new THREE.Vector3(1, sa/80, 1));
+    barB.scale.copy(new THREE.Vector3(1, sb/80, 1));
+    
+    //speedInfo.innerHTML = text;
+    // number format ?!
+
+    dt = 0.01;
+    update(0.01);
+    
+    var tmp = new THREE.Vector3();
+    tmp.copy(pa);
+    tmp.add(pb).multiplyScalar(0.5); // (pa+pb)/2
+
+    car.position.copy(tmp);
+
+    tmp.copy(pa);
+    tmp.sub(pb); // pa - pb;
+    var angle = Math.atan2(tmp.z, tmp.x) - Math.PI / 2;
+	//console.log(angle);
+    //console.log(angle);
+    car.setRotationFromAxisAngle(new THREE.Vector3(0, -1, 0), angle);
+
+	controls.update();
+    requestAnimationFrame(animate);
+ 
+	tire.rotation.z += sa*dt/10;
+	tire1.rotation.z += sb*dt/10;
+	
+	if (tire != undefined) { 
+	 //tire.position.set (pos.x, pos.y+45, pos.z);
+
+	}
+	
+	// rotating lamp
+    var axis = new THREE.Vector3();
+    var d = new THREE.Vector3();
+    var p = new THREE.Vector3();
+    p = car.position.clone().sub(new THREE.Vector3(0, ly, 0)).normalize();
+    d = new THREE.Vector3(0, -1, 0);
+    axis.crossVectors(d, p).normalize();
+    var rotangle = Math.acos(d.dot(p));
+	lamp.setRotationFromAxisAngle(axis, rotangle);
+	////////////////////////////////////
+	if(state === false)
+   {
+    camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 10000000);
+    camera.position.y = 300;
+    camera.position.z= 500;
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
+    //scene.add(camera);
+	console.log(state);
+   }
+   else if(state ===true)
+   {
+    camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 10000000);
+		var relativeCameraOffset = new THREE.Vector3 (200,150,0);
+		var cameraOffset = relativeCameraOffset.applyMatrix4( car.matrixWorld );
+
+		camera.position.x = cameraOffset.x;
+		camera.position.y = cameraOffset.y;
+		camera.position.z = cameraOffset.z;
+		camera.lookAt( car.position );
+	console.log(state);
+   }
+	
+    render();
+
+}
+
+function myclamp(x,lo,hi)
+{
+	if (x < lo) return lo;
+	if (x > hi) return hi;
+	return x;
+}
+function toggle(){
+
+
+
+	state = !state;
+ 
+}
+function createMesh(geom, imageFile, bump) 
+{
+	geom.computeVertexNormals();
+
+	var mat = new THREE.MeshPhongMaterial();
+	var texture = THREE.ImageUtils.loadTexture("images/" + imageFile)
+	mat.map = texture;
+
+	if (bump) {
+		var bump = THREE.ImageUtils.loadTexture("images/" + bump)
+		mat.bumpMap = bump;
+		mat.bumpScale = 0.2;
+	}
+
+	var mesh = new THREE.Mesh(geom, mat);
+
+	return mesh;
+}
+function render() {
+    renderer.clear();
+    renderer.render(scene, camera);
+    renderer.render(sceneHUD, cameraHUD); 
+}
+</script>
+
+</body>
+
+</html>
